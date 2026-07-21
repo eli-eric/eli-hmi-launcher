@@ -1,30 +1,41 @@
+# Sample launcher configuration.
+# Field reference and instructions for filling this in: docs/launcher-config.md
 appName: ELI Control Systems Launcher
 menu:
   - label: L2
     children:
       - label: Motion
         launchables:
-          - id: motion-web
-            label: Motion HMI (Web)
-            description: Open motion dashboard in default browser
+          - id: l2-motion-web
+            name: Motion HMI (Web)
+            note: Motion dashboard in the default browser
+            technology: Web
+            section: Motion
             type: web
             url: "https://example.local/motion"
-          - id: motion-local-exe
-            label: Motion Local HMI
-            description: Launch local motion executable from PATH
+          - id: l2-motion-local
+            name: Motion Local HMI
+            note: Local motion executable from PATH
+            technology: CS Studio
+            section: Motion
             type: executable
             command: "code"
       - label: Vacuum
         launchables:
-          - id: vacuum-web
-            label: Vacuum HMI (Web)
+          - id: l2-vacuum-web
+            name: Vacuum Overview
+            note: Vacuum system overview screen
+            technology: Web
+            section: Vacuum
             type: web
             url: "https://example.local/vacuum"
   - label: Utilities
     launchables:
       - id: historian
-        label: Historian Viewer
-        description: Open machine historian executable
+        name: Historian Viewer
+        note: Machine historian trends and archives
+        technology: WinCC OA
+        section: Diagnostics
         type: executable
         command: "HistorianViewer.exe"
         args:

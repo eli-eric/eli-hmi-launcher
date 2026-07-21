@@ -1,26 +1,56 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ELI HMI Launcher</title>
-    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="top-bar">
-      <div>
-        <h1 id="app-title">ELI HMI Launcher</h1>
-        <p class="subtitle">Control systems GUI launcher</p>
+    <header class="top-bar container-fluid">
+      <div class="brand">
+        <div class="brand-mark" aria-label="ELI ERIC">
+          <span>ELI</span>
+          <small>ERIC</small>
+        </div>
+        <div class="brand-text">
+          <h1 id="app-title">ELI HMI Launcher</h1>
+          <p class="subtitle">Control systems GUI launcher</p>
+        </div>
       </div>
-      <div class="view-switch">
-        <button id="tiles-button" class="active">Tiles</button>
-        <button id="tree-button">Tree</button>
+      <div class="header-actions">
+        <div class="view-switch" role="group" aria-label="Launcher view">
+          <button id="tiles-button" type="button" class="secondary active" aria-pressed="true">Tiles</button>
+          <button id="tree-button" type="button" class="secondary outline" aria-pressed="false">Tree</button>
+        </div>
+        <button id="reload-button" type="button" class="secondary outline" title="Reload the launcher YAML config">
+          Reload config
+        </button>
       </div>
     </header>
 
-    <main>
-      <section id="tiles-view" class="view active"></section>
-      <section id="tree-view" class="view"></section>
+    <section class="toolbar container-fluid" aria-label="Search and filters">
+      <input
+        id="search-input"
+        class="search-input"
+        type="search"
+        placeholder="Search by name or note…"
+        aria-label="Search launchables by name or note"
+      />
+      <label class="filter-field">
+        <span>Technology</span>
+        <select id="technology-filter" aria-label="Filter by technology"></select>
+      </label>
+      <label class="filter-field">
+        <span>Section</span>
+        <select id="section-filter" aria-label="Filter by section"></select>
+      </label>
+      <button id="clear-filters" type="button" class="secondary outline">Clear</button>
+      <span id="match-count" class="match-count" aria-live="polite"></span>
+    </section>
+
+    <main class="container-fluid">
+      <section id="tiles-view" class="view active" aria-label="Tile view"></section>
+      <section id="tree-view" class="view" aria-label="Tree view"></section>
     </main>
 
     <script type="module" src="./app.ts"></script>

@@ -1,9 +1,10 @@
-import type { LauncherConfig, LaunchResult } from "../../shared/types";
+import type { GetConfigResponse, LaunchResult } from "../shared/types";
 
 declare global {
   interface Window {
     launcherApi: {
-      getConfig(): Promise<LauncherConfig>;
+      getConfig(): Promise<GetConfigResponse>;
+      reloadConfig(): Promise<GetConfigResponse>;
       launchItem(itemId: string): Promise<LaunchResult>;
     };
   }

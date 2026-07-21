@@ -1,72 +1,76 @@
 # ELI HMIs Launcher
 
-This repository is the codebase for a new CS HMIs launcher built with web technologies on top of Electron. The goal is to develop the launcher like a web application while still packaging and running it as a native desktop application that can execute machine code on the host system.
+Electron launcher for control-system HMIs. The launcher reads a YAML configuration, presents the configured GUIs in tile or tree form, and opens web pages or local executables on the host machine.
 
-The project started by establishing a local offline documentation base for Electron so the implementation work can continue with the framework reference available directly in the repository.
+## Implemented launcher behavior
 
-## Project direction
+- YAML-driven configuration in `config/launcher.yaml`
+- Hierarchical navigation groups
+- Tile and compact tree views
+- Search restricted to launchable `name` and `note`
+- Filters restricted to `technology` and `section`
+- Transactional config reload: an invalid edit reports an error while the last valid configuration remains active
+- Silent launch behavior: no progress/status bar; successful launches are silent and failures show an actionable error
+- Web targets limited to `http://` and `https://`
+- Executable targets resolved by full path or machine `PATH`, with checks for missing files, permissions, working directories, spawn errors, and immediate non-zero exits
+- Pico CSS as the standard UI component/style foundation, with application-specific CSS limited to layout and branding
+- Automated tests and GitHub Actions CI
 
-We intend to develop a new CS HMIS launcher using web technologies with Electron, allowing it to be built like a web application while still executing native machine code.
-
-## Ready-to-run launcher
-
-A ready-to-run Electron launcher is now included with:
-
-- YAML-driven launcher configuration in `config/launcher.yaml`
-- Hierarchical navigation groups (for example `L2 > Motion > ...`)
-- Two UI modes:
-  - tile navigation mode for operator-friendly launch
-  - compact tree mode for dense navigation
-- Launchable item types:
-  - `web` (opens URL in the default browser)
-  - `executable` (spawns local executable, typically from machine PATH)
-
-### Run locally
+## Run locally
 
 ```sh
 npm install
 npm start
 ```
 
-### Optional custom config path
+To run all submission checks:
 
-Set `ELI_LAUNCHER_CONFIG` to point to an alternative YAML config file.
+```sh
+npm run check
+npm audit
+```
+
+`npm run check` performs TypeScript checking, the automated test suite, and a production Electron/Vite build.
+
+## Use a custom YAML file
+
+Set `ELI_LAUNCHER_CONFIG` to an absolute path:
 
 ```sh
 ELI_LAUNCHER_CONFIG=/absolute/path/to/launcher.yaml npm start
 ```
 
-### YAML structure
+On Windows PowerShell:
 
-```yaml
-appName: Launcher name
-menu:
-  - label: Top level group
-    children:
-      - label: Subgroup
-        launchables:
-          - id: unique-item-id
-            label: Operator label
-            type: web
-            url: "https://..."
-          - id: another-id
-            label: Local executable
-            type: executable
-            command: "MyApp.exe"
-            args: ["--example"]
-            cwd: "C:/Optional/WorkingDir"
+```powershell
+$env:ELI_LAUNCHER_CONFIG = "C:\path\to\launcher.yaml"
+npm start
 ```
 
-## Offline Electron docs
+## YAML configuration
 
-The repository currently includes an offline Markdown mirror of the official Electron documentation under `docs/`.
+The complete field reference is in [`docs/launcher-config.md`](docs/launcher-config.md). A commented L4 fill-in template is in [`config/l4.template.yaml`](config/l4.template.yaml).
 
-To refresh the mirror from the repository root:
+```yaml
+appName: ELI L4 Launcher
+menu:
+  - label: L4
+    launchables:
+      - id: l4-vacuum-overview
+        name: Vacuum Overview       # searched
+        note: Main operator panel   # searched
+        technology: Web             # filterable
+        section: Vacuum             # filterable
+        type: web
+        url: "https://example.test/vacuum"
+```
+
+`name` is required. Legacy launchable fields `label` and `description` remain readable for migration, but the launcher reports a warning instructing users to rename them to `name` and `note`.
+
+## Offline Electron documentation
+
+The repository contains a Markdown mirror of Electron documentation under `docs/electron/`. Refresh it with:
 
 ```sh
 npm run sync:electron-docs
 ```
-
-The sync script resolves the latest stable Electron tag, sparsely checks out the upstream `docs/` tree, mirrors Markdown files into `docs/electron/`, and regenerates the local index in `docs/README.md`.
-
-Current docs scope is Markdown-only. Images, website assets, and Fiddle sources are intentionally excluded in this first implementation.

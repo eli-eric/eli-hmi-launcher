@@ -1,0 +1,64 @@
+# ------------------------------------------------------------------
+# L4 launcher configuration - TEMPLATE
+#
+# How to use this file:
+#   1. Copy one of the example entries below for every GUI you want in
+#      the launcher (one entry per GUI).
+#   2. Fill in the fields. Full instructions: docs/launcher-config.md
+#   3. Run the launcher against this file to test it:
+#        ELI_LAUNCHER_CONFIG=/path/to/l4.yaml npm start
+#      or click "Reload config" in the launcher after editing.
+#
+# Quick rules:
+#   - "id" must be unique in the whole file (use kebab-case, e.g. l4-vacuum-overview).
+#   - "name" and "note" are what the search box looks at - write them
+#     the way operators will search for them.
+#   - "technology" and "section" feed the two filter dropdowns - pick
+#     values from the agreed lists below and keep the spelling identical
+#     everywhere, otherwise the same thing shows up as two filter options.
+#
+# Suggested controlled vocabulary (extend as agreed with the CS team):
+#   technology: CS Studio | WinCC OA | LabVIEW | Web | Other
+#   section:    Vacuum | Motion | Timing | Diagnostics | Laser | Safety
+# ------------------------------------------------------------------
+
+appName: ELI L4 Launcher
+
+menu:
+  - label: L4
+    children:
+
+      - label: Vacuum
+        launchables:
+          # --- EXAMPLE 1: a GUI that opens in the web browser -------
+          - id: l4-vacuum-overview
+            name: Vacuum Overview
+            note: Overall vacuum state of the L4 beamline
+            technology: Web
+            section: Vacuum
+            type: web
+            url: "https://REPLACE-ME.example/vacuum"
+
+      - label: Motion
+        launchables:
+          # --- EXAMPLE 2: a GUI started as a local program ----------
+          - id: l4-motion-main
+            name: Motion Main Panel
+            note: Motorized stages and axes control
+            technology: CS Studio
+            section: Motion
+            type: executable
+            command: "C:/Program Files/CSStudio/css.exe"   # full path, or a program name on PATH
+            args: ["-workspace", "L4-motion"]              # optional
+            cwd: "C:/CSStudio/workspaces"                  # optional working directory
+
+      # --- Add more groups and GUIs below this line ---------------
+      # - label: Timing
+      #   launchables:
+      #     - id: l4-...
+      #       name: ...
+      #       note: ...
+      #       technology: ...
+      #       section: Timing
+      #       type: web | executable
+      #       url / command: ...

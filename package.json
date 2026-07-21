@@ -6,9 +6,13 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite dev",
-    "sync:electron-docs": "tsx ./scripts/sync-electron-docs.ts"
+    "sync:electron-docs": "tsx ./scripts/sync-electron-docs.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "check": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
+    "@picocss/pico": "2.1.1",
     "yaml": "2.9.0"
   },
   "devDependencies": {

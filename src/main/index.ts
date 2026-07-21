@@ -1,61 +1,17 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
-import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
-import YAML from "yaml";
-import type { LaunchableItem, LauncherConfig, MenuNode } from "../shared/types";
+import type { WebLaunchable } from "../shared/types";
+import { LauncherConfigStore } from "./config-store";
+import { launchExecutable } from "./launch-executable";
 
-type LoadedConfig = LauncherConfig & {
-  launchablesById: Map<string, LaunchableItem>;
-};
-
-let launcherConfig: LoadedConfig = {
-  appName: "ELI HMI Launcher",
-  menu: [],
-  launchablesById: new Map(),
-};
+const configStore = new LauncherConfigStore();
 
 function getConfigPath(): string {
   if (process.env["ELI_LAUNCHER_CONFIG"]) {
     return path.resolve(process.env["ELI_LAUNCHER_CONFIG"]);
   }
+
   return path.join(app.getAppPath(), "config", "launcher.yaml");
-}
-
-function collectLaunchables(nodes: MenuNode[], launchablesById: Map<string, LaunchableItem>): void {
-  for (const node of nodes) {
-    const launchables = Array.isArray(node.launchables) ? node.launchables : [];
-
-    for (const launchable of launchables) {
-      if (launchable.id) {
-        launchablesById.set(launchable.id, launchable);
-      }
-    }
-
-    const children = Array.isArray(node.children) ? node.children : [];
-    collectLaunchables(children, launchablesById);
-  }
-}
-
-async function loadLauncherConfig(): Promise<void> {
-  const configPath = getConfigPath();
-  const fileContent = await readFile(configPath, "utf8");
-  const parsed: unknown = YAML.parse(fileContent);
-
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error("Launcher config is empty or invalid.");
-  }
-
-  const raw = parsed as Record<string, unknown>;
-  const menu = Array.isArray(raw["menu"]) ? (raw["menu"] as MenuNode[]) : [];
-  const launchablesById = new Map<string, LaunchableItem>();
-  collectLaunchables(menu, launchablesById);
-
-  launcherConfig = {
-    appName: typeof raw["appName"] === "string" ? raw["appName"] : "ELI HMI Launcher",
-    menu,
-    launchablesById,
-  };
 }
 
 function createMainWindow(): void {
@@ -74,74 +30,54 @@ function createMainWindow(): void {
   });
 
   if (process.env["ELECTRON_RENDERER_URL"]) {
-    window.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+    void window.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
-    window.loadFile(path.join(__dirname, "../renderer/index.html"));
+    void window.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
 }
 
-async function launchWebTarget(url: string): Promise<void> {
-  const parsedUrl = new URL(url);
+async function launchWebTarget(item: WebLaunchable): Promise<void> {
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(item.url);
+  } catch {
+    throw new Error(`"${item.name}" has an invalid URL: "${item.url}". Fix the "url" value in the launcher YAML.`);
+  }
 
   if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-    throw new Error("Only HTTP(S) URLs are allowed for web launchables.");
+    throw new Error(`"${item.name}" uses ${parsedUrl.protocol}// but only http:// and https:// URLs are allowed.`);
   }
 
-  await shell.openExternal(url);
-}
-
-function launchExecutable(command: string, args: string[] = [], cwd?: string): void {
-  const child = spawn(command, args, {
-    detached: true,
-    stdio: "ignore",
-    shell: false,
-    cwd: cwd ?? undefined,
-  });
-
-  child.unref();
+  await shell.openExternal(item.url);
 }
 
 function registerIpcHandlers(): void {
-  ipcMain.handle("launcher:get-config", async () => {
-    return {
-      appName: launcherConfig.appName,
-      menu: launcherConfig.menu,
-    };
-  });
+  ipcMain.handle("launcher:get-config", async () => configStore.getResponse());
+
+  ipcMain.handle("launcher:reload-config", async () => configStore.reload(getConfigPath()));
 
   ipcMain.handle("launcher:launch-item", async (_event, itemId: string) => {
-    const item = launcherConfig.launchablesById.get(itemId);
+    const item = configStore.getLaunchable(itemId);
 
     if (!item) {
       throw new Error(`Unknown launcher item id: ${itemId}`);
     }
 
     if (item.type === "web") {
-      if (!item.url) {
-        throw new Error(`Invalid URL for item ${itemId}`);
-      }
-      await launchWebTarget(item.url);
-      return { ok: true };
+      await launchWebTarget(item);
+    } else {
+      await launchExecutable(item);
     }
 
-    if (item.type === "executable") {
-      if (!item.command) {
-        throw new Error(`Invalid executable command for item ${itemId}`);
-      }
-      const args = Array.isArray(item.args) ? item.args.map((value) => String(value)) : [];
-      const cwd = typeof item.cwd === "string" ? item.cwd : undefined;
-      launchExecutable(item.command, args, cwd);
-      return { ok: true };
-    }
-
-    throw new Error(`Unsupported launcher item type for ${itemId}`);
+    return { ok: true } as const;
   });
 }
 
 app
   .whenReady()
   .then(async () => {
-    await loadLauncherConfig();
+    await configStore.initialize(getConfigPath());
     registerIpcHandlers();
     createMainWindow();
 
