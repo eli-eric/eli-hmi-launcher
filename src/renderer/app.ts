@@ -7,8 +7,7 @@ import type {
   LauncherAction,
   LauncherConfig,
   LauncherRow,
-  RuntimeItemState,
-  RuntimeSnapshot,
+  RepoSettingsInput,
 } from "../shared/types";
 
 type AppState = {
@@ -18,7 +17,6 @@ type AppState = {
   search: string;
   technology: string;
   section: string;
-  runtimeById: Map<string, RuntimeItemState>;
 };
 
 const state: AppState = {
@@ -28,7 +26,6 @@ const state: AppState = {
   search: "",
   technology: "",
   section: "",
-  runtimeById: new Map(),
 };
 
 const quickActionsElement = document.getElementById("quick-actions") as HTMLElement;
@@ -42,7 +39,7 @@ const rowsElement = document.getElementById("launcher-rows") as HTMLTableSection
 const rowCountElement = document.getElementById("row-count") as HTMLParagraphElement;
 const catalogStalenessElement = document.getElementById("catalog-staleness") as HTMLParagraphElement;
 const fieldReportElement = document.getElementById("field-report-banner") as HTMLParagraphElement;
-const configLocationElement = document.getElementById("config-location") as HTMLParagraphElement;
+const configLocationElement = document.querySelector(".app-footer") as HTMLElement;
 const configLocationText = document.getElementById("config-location-text") as HTMLSpanElement;
 const configLocationOpen = document.getElementById("config-location-open") as HTMLButtonElement;
 const appTitle = document.getElementById("app-title") as HTMLElement;
@@ -123,26 +120,6 @@ function appendLaunchCell(row: HTMLTableRowElement, item: LauncherRow): void {
   row.appendChild(cell);
 }
 
-function runtimeLabel(runtime: RuntimeItemState | undefined): string {
-  if (!runtime) return "--";
-  if (runtime.stale) return "STALE";
-  if (runtime.status === "running") return runtime.runningInstances > 1 ? `RUNNING ${runtime.runningInstances}` : "RUNNING";
-  if (runtime.status === "shared") return "SHARED";
-  if (runtime.status === "handed-off") return "HANDOFF";
-  if (runtime.status === "stopped") return "STOPPED";
-  return "UNKNOWN";
-}
-
-function appendRuntimeCell(row: HTMLTableRowElement, runtime: RuntimeItemState | undefined): void {
-  const cell = document.createElement("td");
-  cell.className = "runtime-state-cell";
-  cell.textContent = runtimeLabel(runtime);
-  cell.dataset.runtimeStatus = runtime?.stale ? "stale" : (runtime?.status ?? "unobserved");
-  cell.title = runtime?.detail ?? "No launch has been observed in this launcher session.";
-  cell.setAttribute("aria-label", runtime ? `Runtime state: ${cell.textContent}. ${runtime.detail}` : "Runtime state: no launch observed.");
-  row.appendChild(cell);
-}
-
 function renderRows(): void {
   const rows = filterLauncherRows(state.rows, {
     search: state.search,
@@ -154,7 +131,7 @@ function renderRows(): void {
   if (rows.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 7;
+    cell.colSpan = 6;
     cell.className = "empty-row";
     cell.textContent = "No GUIs match the current filters.";
     row.appendChild(cell);
@@ -162,12 +139,24 @@ function renderRows(): void {
   } else {
     for (const item of rows) {
       const row = document.createElement("tr");
+      // The whole row launches, not just the name. Aiming at one cell of a
+      // full-width row is needless precision for an operator who has already
+      // decided which line they want.
+      //
+      // The name cell holds a real button so the row stays reachable by keyboard
+      // and announces itself to a screen reader; this handler ignores clicks that
+      // originated there, or the launch would fire twice.
+      row.addEventListener("click", (event) => {
+        if ((event.target as HTMLElement | null)?.closest(".launch-button")) {
+          return;
+        }
+        void launchItem(item.id, item.name);
+      });
       appendLaunchCell(row, item);
       appendCell(row, displayList(item.technology));
       appendCell(row, displayList(item.section));
       appendCell(row, item.platform);
       appendCell(row, item.rmc);
-      appendRuntimeCell(row, state.runtimeById.get(item.id));
       appendCell(row, item.note);
       rowsElement.appendChild(row);
     }
@@ -178,13 +167,8 @@ function renderRows(): void {
 
 function setSelectOptions(select: HTMLSelectElement, values: string[]): void {
   const current = select.value;
-  select.replaceChildren(new Option("All", ""), ...values.map((value) => new Option(value, value)));
+  select.replaceChildren(new Option("Select", ""), ...values.map((value) => new Option(value, value)));
   select.value = values.includes(current) ? current : "";
-}
-
-function applyRuntimeSnapshot(snapshot: RuntimeSnapshot): void {
-  state.runtimeById = new Map(snapshot.items.map((item) => [item.id, item]));
-  renderRows();
 }
 
 function applyConfig(config: LauncherConfig): void {
@@ -247,13 +231,10 @@ document.addEventListener("keydown", (event) => {
 
 async function initialize(): Promise<void> {
   try {
-    const [config, runtime] = await Promise.all([
-      window.launcherApi.getConfig(),
-      window.launcherApi.getRuntimeStates(),
-    ]);
-    window.launcherApi.onRuntimeStates(applyRuntimeSnapshot);
-    applyConfig(config);
-    applyRuntimeSnapshot(runtime);
+    // Runtime state is no longer displayed, so the renderer does not subscribe
+    // to it. The main process still observes it and still decides whether a
+    // second instance may start; nothing here needs to know.
+    applyConfig(await window.launcherApi.getConfig());
     await Promise.all([showConfigLocation(), showFieldReportBanner()]);
   } catch (error) {
     setStatus(`Config load failed: ${error instanceof Error ? error.message : String(error)}`, true);
@@ -261,3 +242,130 @@ async function initialize(): Promise<void> {
 }
 
 void initialize();
+
+// ---------------------------------------------------------------------------
+// Configuration screen.
+//
+// Setting six environment variables is a fine thing to ask of a deployment
+// script and a poor thing to ask of an operator at a workstation. This is the
+// same settings by another route; the environment still wins, and the screen
+// says so when it does.
+// ---------------------------------------------------------------------------
+
+const settingsDialog = document.getElementById("settings-dialog") as HTMLDialogElement | null;
+
+if (settingsDialog) {
+  const field = (id: string): HTMLInputElement => document.getElementById(id) as HTMLInputElement;
+  const openButton = document.getElementById("open-settings") as HTMLButtonElement;
+  const urlField = field("settings-url");
+  const usernameField = field("settings-username");
+  const tokenField = field("settings-token");
+  const subpathField = field("settings-subpath");
+  const refField = field("settings-ref");
+  const hostnameField = field("settings-hostname");
+  const tokenHint = document.getElementById("settings-token-hint") as HTMLElement;
+  const hostnameHint = document.getElementById("settings-hostname-hint") as HTMLElement;
+  const envNote = document.getElementById("settings-env-note") as HTMLElement;
+  const storageNote = document.getElementById("settings-storage-note") as HTMLElement;
+  const result = document.getElementById("settings-result") as HTMLElement;
+  const testButton = document.getElementById("settings-test") as HTMLButtonElement;
+  const clearButton = document.getElementById("settings-clear") as HTMLButtonElement;
+  const cancelButton = document.getElementById("settings-cancel") as HTMLButtonElement;
+  const saveButton = document.getElementById("settings-save") as HTMLButtonElement;
+
+  function say(message: string, tone: "ok" | "bad" | "busy"): void {
+    result.textContent = message;
+    result.dataset["tone"] = tone;
+    result.hidden = false;
+  }
+
+  function collect(): RepoSettingsInput {
+    return {
+      url: urlField.value,
+      username: usernameField.value,
+      token: tokenField.value,
+      ref: refField.value,
+      subpath: subpathField.value,
+      hostname: hostnameField.value,
+    };
+  }
+
+  async function fill(): Promise<void> {
+    const view = await window.launcherApi.getRepoSettings();
+    urlField.value = view.url;
+    usernameField.value = view.username;
+    subpathField.value = view.subpath;
+    refField.value = view.ref;
+    hostnameField.value = view.hostname;
+    tokenField.value = "";
+
+    tokenField.placeholder = view.tokenStored ? "stored — leave empty to keep it" : "";
+    tokenHint.textContent = view.secureStorageAvailable
+      ? "Stored encrypted by the operating system. Never shown again."
+      : "This system offers no secure storage, so a token cannot be saved here.";
+
+    hostnameHint.textContent =
+      `This machine is “${view.machineName}”. The repository must hold a host file of that ` +
+      "name; enter another machine's name to borrow its file.";
+
+    storageNote.hidden = view.secureStorageAvailable;
+    storageNote.textContent = view.secureStorageAvailable
+      ? ""
+      : "No secure storage on this system. Everything except the token can be saved here; " +
+        "the token has to come from the environment.";
+
+    envNote.hidden = view.overriddenByEnv.length === 0;
+    envNote.textContent =
+      view.overriddenByEnv.length === 0
+        ? ""
+        : `Set in the environment and therefore in charge: ${view.overriddenByEnv.join(", ")}. ` +
+          "Values saved here are kept but do not take effect until those are removed.";
+
+    result.hidden = true;
+  }
+
+  openButton?.addEventListener("click", () => {
+    void fill().then(() => settingsDialog.showModal());
+  });
+
+  cancelButton.addEventListener("click", () => settingsDialog.close());
+
+  testButton.addEventListener("click", () => {
+    say("Connecting…", "busy");
+    testButton.disabled = true;
+    void window.launcherApi
+      .testRepoSettings(collect())
+      .then((outcome) => say(outcome.message, outcome.ok ? "ok" : "bad"))
+      .catch((error: unknown) => say(String(error), "bad"))
+      .finally(() => {
+        testButton.disabled = false;
+      });
+  });
+
+  saveButton.addEventListener("click", () => {
+    void window.launcherApi
+      .saveRepoSettings(collect())
+      .then(async (outcome) => {
+        say(
+          outcome.message ?? "Saved. The launcher has to restart to read the catalog again.",
+          outcome.message ? "bad" : "ok",
+        );
+        tokenField.value = "";
+        await fill();
+        if (!outcome.message) {
+          await window.launcherApi.restartApp();
+        }
+      })
+      .catch((error: unknown) => say(String(error), "bad"));
+  });
+
+  clearButton.addEventListener("click", () => {
+    void window.launcherApi
+      .clearRepoSettings()
+      .then(async () => {
+        await fill();
+        say("Cleared. The launcher will use the local launcher.yaml after a restart.", "ok");
+      })
+      .catch((error: unknown) => say(String(error), "bad"));
+  });
+}

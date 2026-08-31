@@ -1,9 +1,11 @@
 :root {
   color-scheme: dark;
-  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", Arial, sans-serif;
+  /* Normal width, not condensed. A condensed face squeezes device names and RMC
+     identifiers into something that has to be read twice, which is the opposite
+     of what a launcher is for. */
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background: #000000;
   color: #ffffff;
-  --runtime-state-column-width: 8rem;
 }
 
 *,
@@ -149,13 +151,15 @@ h1 {
   width: 100%;
 }
 
+/* Sentence case and normal weight: these are labels above a control, not
+   headings competing with the launcher title. */
 .filter-field {
   display: grid;
-  gap: 0.2rem;
-  min-width: 10rem;
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-transform: uppercase;
+  gap: 0.25rem;
+  min-width: 11rem;
+  font-size: 0.9rem;
+  font-weight: 400;
+  text-transform: none;
 }
 
 .filter-field select {
@@ -217,7 +221,6 @@ main {
   padding: 0 1rem 1rem;
 }
 
-.config-location,
 .field-report-banner,
 .catalog-staleness,
 .status-banner {
@@ -226,18 +229,6 @@ main {
   padding: 0.45rem 0;
   border-bottom: 1px solid #ffffff;
   font-size: 0.86rem;
-}
-
-.config-location {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.config-location button {
-  min-height: 1.8rem;
-  padding: 0.15rem 0.55rem;
 }
 
 .field-report-banner,
@@ -263,15 +254,19 @@ main {
   padding: 0.1rem 0.4rem;
 }
 
+/* The panel scrolls; it does not draw the frame. Putting the border here framed
+   whatever space was left over, so a catalog with three entries showed three
+   rows inside a box the height of the window. The border belongs on the table,
+   which is as tall as its rows. */
 .table-panel {
   min-height: 0;
   flex: 1 1 auto;
   overflow: auto;
-  border-right: 1px solid #ffffff;
-  border-bottom: 1px solid #ffffff;
-  border-left: 1px solid #ffffff;
 }
 
+/* No frame. The only rule that earns its place is the one separating the toolbar
+   from the data, and .app-header already draws it. Boxing the table in on three
+   more sides added lines that mark nothing. */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -279,13 +274,22 @@ table {
   background: #000000;
 }
 
+/* Rows are white with black text. The window frame is black, so the data is the
+   lit surface and the chrome around it recedes -- which is the whole point of
+   the layout, and the opposite of a black table that disappears into the
+   background. */
 th,
 td {
-  padding: 0.48rem 0.55rem;
-  border-top: 1px solid #ffffff;
-  border-right: 1px solid #ffffff;
+  padding: 0.62rem 0.7rem;
+  border-top: 1px solid #000000;
+  border-right: 1px solid #000000;
   vertical-align: middle;
   overflow-wrap: anywhere;
+}
+
+tbody td {
+  background: #ffffff;
+  color: #000000;
 }
 
 th:last-child,
@@ -293,27 +297,44 @@ td:last-child {
   border-right: 0;
 }
 
+/* The header labels the columns; it is not a band of contrast competing with the
+   rows for attention. Black on white, sentence case, separated by a rule. */
 .table-panel thead th {
   position: sticky;
   z-index: 10;
   top: 0;
-  background: #ffffff;
-  color: #000000;
+  background: #000000;
+  color: #ffffff;
   text-align: left;
-  font-size: 0.82rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 1px solid #ffffff;
+  padding-bottom: 0.55rem;
 }
 
+/* Hovering inverts the row to black. With two colours there is no halfway
+   shade, and against white rows the inversion is unmistakable at a glance from
+   across a control room.
+   The cell separators invert with it: black rules vanish into a black row, so
+   they switch to white and the columns stay legible while the row is lit. */
 tbody tr:hover td {
-  background: #ffffff;
-  color: #000000;
+  background: #000000;
+  color: #ffffff;
+  border-color: #ffffff;
 }
 
 tbody tr:hover .launch-button {
-  border-color: #000000;
   background: #000000;
   color: #ffffff;
+}
+
+/* The whole row is the control, so the whole row shows it. */
+tbody tr {
+  cursor: pointer;
 }
 
 .name-cell {
@@ -322,24 +343,36 @@ tbody tr:hover .launch-button {
 
 .launch-button {
   width: 100%;
-  min-height: 2.65rem;
-  padding: 0.48rem 0.55rem;
+  min-height: 2.9rem;
+  padding: 0.62rem 0.7rem;
   border: 0;
-  background: #000000;
-  color: #ffffff;
+  background: #ffffff;
+  color: #000000;
   font-weight: 700;
   text-align: left;
 }
 
+/* The name button opts out of the outline every other button gets.
+   That generic `button:hover` rule drew a white box around this button alone,
+   which on a full-width row looked like a half-finished outline round the first
+   cell -- and pointed at the wrong target, since the whole row is the control.
+   The button keeps focus for the keyboard and the screen reader; the row draws
+   the mark. */
 .launch-button:hover,
+.launch-button:focus,
 .launch-button:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: -3px;
+  outline: none;
 }
 
-.runtime-state-cell {
-  font-weight: 700;
-  white-space: nowrap;
+tbody tr:focus-within td {
+  background: #000000;
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+tbody tr:focus-within .launch-button {
+  background: #000000;
+  color: #ffffff;
 }
 
 .empty-row {
@@ -347,12 +380,14 @@ tbody tr:hover .launch-button {
   text-align: center;
 }
 
-.column-name { width: 18%; }
-.column-technology { width: 13%; }
-.column-section { width: 11%; }
-.column-platform { width: 9%; }
-.column-rmc { width: 10%; }
-.column-runtime-state { width: var(--runtime-state-column-width); }
+/* Proportioned so the note keeps the room it needs. The middle columns hold
+   short, repeated values -- "Vacuum", "LabVIEW", "RMC403" -- and were taking
+   width from the one column whose content is a sentence. */
+.column-name { width: 19%; }
+.column-technology { width: 10%; }
+.column-section { width: 9%; }
+.column-platform { width: 8%; }
+.column-rmc { width: 8%; }
 .column-note { width: auto; }
 
 .row-count {
@@ -377,4 +412,198 @@ tbody tr:hover .launch-button {
   .column-note {
     width: 20%;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Configuration screen.
+
+   The palette is two colours, so state is carried by border weight and
+   inversion rather than by hue. A failed test is a heavy border and a "—"
+   prefix, not red text; this stays legible to anyone who cannot separate red
+   from green, which in a control room is worth more than decoration.
+   --------------------------------------------------------------------------- */
+
+.settings-dialog {
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  padding: 0;
+  max-width: 40rem;
+  width: calc(100vw - 4rem);
+}
+
+.settings-dialog::backdrop {
+  background: #000000;
+  opacity: 0.85;
+}
+
+.settings-dialog form {
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.settings-dialog h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.settings-intro {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.settings-note {
+  border: 1px solid #ffffff;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.settings-field {
+  display: block;
+  margin-bottom: 0.9rem;
+}
+
+.settings-field > span {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.settings-field input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+}
+
+.settings-field input::placeholder {
+  color: #ffffff;
+  opacity: 0.55;
+}
+
+.settings-field small {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+.settings-more {
+  margin: 0 0 1rem;
+  border-top: 1px solid #ffffff;
+  padding-top: 0.75rem;
+}
+
+.settings-more summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.settings-result {
+  border: 1px solid #ffffff;
+  padding: 0.6rem 0.75rem;
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+/* Inverted, so a failure is unmistakable without colour. */
+.settings-result[data-tone="bad"] {
+  border-width: 2px;
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+}
+
+.settings-result[data-tone="busy"] {
+  border-style: dashed;
+}
+
+.settings-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  border-top: 1px solid #ffffff;
+  padding-top: 0.9rem;
+}
+
+.settings-spacer {
+  flex: 1 1 auto;
+}
+
+/* Every button in the application is white with black text. A dialog whose
+   buttons are the inverse of the toolbar's reads as a different program. */
+.settings-buttons button {
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #000000;
+  padding: 0.4rem 0.85rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.settings-buttons button:hover:not(:disabled),
+.settings-buttons button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.settings-buttons button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* The default action is marked by weight and a heavier edge, not by inverting
+   it -- inverting would make it the one dark button in a row of light ones. */
+.settings-buttons .primary {
+  font-weight: 700;
+  border-width: 2px;
+}
+
+
+/* ---------------------------------------------------------------------------
+   Footer.
+
+   Where the configuration came from belongs on screen -- an operator editing
+   the wrong file loses an afternoon -- but it is reference material, not the
+   point of the window. It sits under the table, out of the reading path, and
+   still says plainly when the file is one an upgrade will overwrite.
+   --------------------------------------------------------------------------- */
+
+.app-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.1rem 0;
+  font-size: 0.82rem;
+}
+
+.config-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.app-footer button {
+  flex: 0 0 auto;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.82rem;
 }
